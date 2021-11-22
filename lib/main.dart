@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:quickblox_sdk/auth/module.dart';
@@ -40,6 +39,8 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  // all of this from the quick blox dashboard..
+
   String appId = "94597";
   String authKey = "9gBUw9Czzj9WdAE";
   String authSecret = "tSfyAV5CBpzrfzG";
@@ -54,9 +55,11 @@ class _HomePageState extends State<HomePage> {
 
   //int sessionType = QBRTCSessionTypes.VIDEO;
   String? _sessionId;
+  String? _messageId;
 
   StreamSubscription? _callSubscription;
   RTCVideoViewController? _localVideoViewController;
+  StreamSubscription? _newMessageSubscription;
 
   int userId = 7832;
 
@@ -152,6 +155,14 @@ class _HomePageState extends State<HomePage> {
                     sendMessage();
                   }),
             ),
+            MaterialButton(
+                minWidth: 200,
+                onPressed: () {
+                  subscribeNewMessage();
+                },
+                child: const Text('subscribe message events'),
+                color: Theme.of(context).primaryColor,
+                textColor: Colors.white),
             Padding(
               padding: EdgeInsets.only(top: 16),
               child: MaterialButton(
@@ -173,6 +184,15 @@ class _HomePageState extends State<HomePage> {
                   onPressed: () async {
                     releaseWebRTC();
                   }),
+            ),
+            MaterialButton(
+              minWidth: 200,
+              child: Text('subscribe RTC events'),
+              color: Theme.of(context).primaryColor,
+              textColor: Colors.white,
+              onPressed: () {
+                subscribeCall();
+              },
             ),
             Padding(
               padding: EdgeInsets.only(top: 16),
@@ -285,7 +305,7 @@ class _HomePageState extends State<HomePage> {
 
   void joinDialog() async {
     try {
-      String dialogId = "61963a05b52ce70031bd5133";
+      String dialogId = "619b5a82af1e270043f1cfe8";
       await QB.chat.joinDialog(dialogId);
       print("joined successfully");
     } catch (e) {
@@ -294,12 +314,11 @@ class _HomePageState extends State<HomePage> {
   }
 
   void sendMessage() async {
-    String dialogId = "619a043baf1e27002ff1d0cd";
+    String dialogId = "619b5a82af1e270043f1cfe8";
     String body = "test body Budor";
     List<QBAttachment>? attachments = [];
     Map<String, String>? properties = Map();
     bool markable = false;
-    // String dateSent = "2000-023T01:23:45.678+09:00";
     bool saveToHistory = true;
 
     try {
@@ -308,11 +327,37 @@ class _HomePageState extends State<HomePage> {
           attachments: attachments,
           properties: properties,
           markable: markable,
-          //dateSent: dateSent,
           saveToHistory: saveToHistory);
       print('sent successfully');
     } on PlatformException catch (e) {
-      // Some error occurred, look at the exception message for more details
+      print(e);
+    }
+  }
+
+  //subscribe message event
+
+  void subscribeNewMessage() async {
+    if (_newMessageSubscription != null) {
+      print("You already have a subscription for: " +
+          QBChatEvents.RECEIVED_NEW_MESSAGE);
+      return;
+    }
+    try {
+      _newMessageSubscription = await QB.chat
+          .subscribeChatEvent(QBChatEvents.RECEIVED_NEW_MESSAGE, (data) {
+        Map<dynamic, dynamic> map = Map<dynamic, dynamic>.from(data);
+
+        Map<dynamic, dynamic> payload =
+            Map<dynamic, dynamic>.from(map["payload"]);
+        _messageId = payload["id"] as String;
+
+        print("Received message: \n ${payload["body"]}");
+      }, onErrorMethod: (error) {
+        print(error);
+      });
+      print("Subscribed: " + QBChatEvents.RECEIVED_NEW_MESSAGE);
+    } on PlatformException catch (e) {
+      print(e);
     }
   }
 
@@ -331,6 +376,32 @@ class _HomePageState extends State<HomePage> {
       await QB.webrtc.release();
       print("WebRTC was released");
       _sessionId = null;
+    } catch (e) {
+      print(e);
+    }
+  }
+
+  //subscribe to the video call
+
+  Future<void> subscribeCall() async {
+    if (_callSubscription != null) {
+      print("You already have a subscription for: " + QBRTCEventTypes.CALL);
+      return;
+    }
+
+    try {
+      _callSubscription =
+          await QB.webrtc.subscribeRTCEvent(QBRTCEventTypes.CALL, (data) {
+        Map<dynamic, dynamic> payloadMap =
+            Map<dynamic, dynamic>.from(data["payload"]);
+
+        Map<dynamic, dynamic> sessionMap =
+            Map<dynamic, dynamic>.from(payloadMap["session"]);
+
+        String sessionId = sessionMap["id"];
+        int initiatorId = sessionMap["initiatorId"];
+        int callType = sessionMap["type"];
+      });
     } catch (e) {
       print(e);
     }
