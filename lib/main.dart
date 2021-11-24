@@ -50,10 +50,11 @@ class _HomePageState extends State<HomePage> {
   String USER_PASSWORD = "12121212";
   int USER_ID = 131957427;
   String? _dialogId;
-  List<int> OPPONENTS_IDS = [22345, 23521];
+  List<int> OPPONENTS_IDS = [
+    132042907
+  ]; // the id for the one who i call you such as dr
   bool _videoCall = true;
 
-  //int sessionType = QBRTCSessionTypes.VIDEO;
   String? _sessionId;
   String? _messageId;
 
@@ -109,6 +110,15 @@ class _HomePageState extends State<HomePage> {
                   onPressed: () {
                     connect();
                   }),
+            ),
+            Padding(
+              padding: EdgeInsets.only(top: 16),
+              child: MaterialButton(
+                  minWidth: 200,
+                  child: const Text('Subscribe to the chat event '),
+                  color: Theme.of(context).primaryColor,
+                  textColor: Colors.white,
+                  onPressed: () {}),
             ),
             Padding(
               padding: EdgeInsets.only(top: 16),
@@ -187,7 +197,7 @@ class _HomePageState extends State<HomePage> {
             ),
             MaterialButton(
               minWidth: 200,
-              child: Text('subscribe RTC events'),
+              child: const Text('subscribe RTC Video Call'),
               color: Theme.of(context).primaryColor,
               textColor: Colors.white,
               onPressed: () {
@@ -208,17 +218,17 @@ class _HomePageState extends State<HomePage> {
                     });
                   }),
             ),
-            Padding(
-              padding: EdgeInsets.only(top: 16),
-              child: MaterialButton(
-                  minWidth: 200,
-                  child: const Text('Accept WebRTC'),
-                  color: Theme.of(context).primaryColor,
-                  textColor: Colors.white,
-                  onPressed: () async {
-                    acceptWebRTC(_sessionId!);
-                  }),
-            ),
+            // Padding(
+            //   padding: EdgeInsets.only(top: 16),
+            //   child: MaterialButton(
+            //       minWidth: 200,
+            //       child: const Text('Accept WebRTC'),
+            //       color: Theme.of(context).primaryColor,
+            //       textColor: Colors.white,
+            //       onPressed: () async {
+            //         acceptWebRTC(_sessionId!);
+            //       }),
+            // ),
             Padding(
               padding: EdgeInsets.only(top: 16),
               child: MaterialButton(
@@ -262,6 +272,19 @@ class _HomePageState extends State<HomePage> {
     try {
       await QB.chat.connect(USER_ID, USER_PASSWORD);
       print("chat connected successfully");
+    } on PlatformException catch (e) {
+      print(e);
+    }
+  }
+
+  void subscribeChat() async {
+    String event = QBChatEvents.CONNECTED;
+
+    try {
+      StreamSubscription connectedSubscription =
+          await QB.chat.subscribeChatEvent(event, (data) {
+        print("[Debug: Subscribe done]");
+      });
     } on PlatformException catch (e) {
       print(e);
     }
@@ -383,13 +406,38 @@ class _HomePageState extends State<HomePage> {
 
   //subscribe to the video call
 
-  Future<void> subscribeCall() async {
-    if (_callSubscription != null) {
-      print("You already have a subscription for: " + QBRTCEventTypes.CALL);
-      return;
-    }
+  // Future<void> subscribeCall() async {
+  //   if (_callSubscription != null) {
+  //     print("You already have a subscription for: " + QBRTCEventTypes.CALL);
+  //     return;
+  //   }
+  //
+  //   try {
+  //     _callSubscription =
+  //         await QB.webrtc.subscribeRTCEvent(QBRTCEventTypes.ACCEPT, (data) {
+  //       Map<dynamic, dynamic> payloadMap =
+  //           Map<dynamic, dynamic>.from(data["payload"]);
+  //
+  //       Map<dynamic, dynamic> sessionMap =
+  //           Map<dynamic, dynamic>.from(payloadMap["session"]);
+  //
+  //       String sessionId = sessionMap["id"];
+  //       print("[Debug: Session ID changed ]");
+  //       int initiatorId = sessionMap["initiatorId"];
+  //
+  //       _sessionId = sessionId;
+  //
+  //       print("The INCOMING call from user $initiatorId");
+  //       acceptWebRTC(sessionId);
+  //     });
+  //   } catch (e) {
+  //     print(e);
+  //   }
+  // }
 
+  Future<void> subscribeCall() async {
     try {
+      print("HIIIIIII");
       _callSubscription =
           await QB.webrtc.subscribeRTCEvent(QBRTCEventTypes.CALL, (data) {
         Map<dynamic, dynamic> payloadMap =
@@ -400,9 +448,12 @@ class _HomePageState extends State<HomePage> {
 
         String sessionId = sessionMap["id"];
         int initiatorId = sessionMap["initiatorId"];
-        int callType = sessionMap["type"];
+        _sessionId = sessionId;
+
+        print("The INCOMING call from user $initiatorId");
+        acceptWebRTC(sessionId);
       });
-    } catch (e) {
+    } on PlatformException catch (e) {
       print(e);
     }
   }
